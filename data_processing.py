@@ -13,9 +13,15 @@ folder_name=0
 sample_size=50*10
 
 training_input=np.zeros((sample_size,(784,1)))
-training_output=np.zeros((sample_size,1))
+training_output=np.zeros((sample_size,(10,1)))
 
 sample_count=0
+
+# to give one hot encoding to each label
+def vectorized(j):
+    result=np.zeros((10,1))
+    result[j]=1
+    return result
 
 def load_data():
     while(True):
@@ -65,14 +71,14 @@ def load_data():
         np.reshape(normalized,(784,1))
 
         training_input(sample_count)=normalized
-        training_output(sample_count)=folder_name
+        training_output(sample_count)=vectorized(folder_name)
 
         file_name+=1
         
         sample_count+=1
 
-    training_data=(training_input,training_output)
-
+    # training data is a list of tuples where each image is associated with its label vector
+    training_data=zip(training_input,training_output)
     return training_data
 
         
