@@ -31,6 +31,7 @@ class Neural_Network:
                 mini_batches.append(training_data[k:k+mini_batch_size])
             for mini_batch in mini_batches:
                 self.update_parameters(mini_batch,lr)
+        print("training done")
             
     def update_parameters(self,mini_batch,learning_rate):
         db=[] #db and dw aren't the actual cost derivatives, theyre just the changes that need to be added
