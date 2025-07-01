@@ -1,88 +1,103 @@
-import numpy as np
 import random
+import numpy as np
 
-# helper functions
-def sigma(z):
-    return 1.0/(1+np.exp(-z))
+class Network(object):
 
-def sigma_prime(z):
-    return sigma(z)*(1-sigma(z))
+    def __init__(self, sizes):
+        """Initialize the network with a given architecture.
+        `sizes` is a list like [784, 30, 10].
+        """
+        self.num_layers = len(sizes)
+        self.sizes = sizes
+        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
+        self.weights = [np.random.randn(y, x)
+                        for x, y in zip(sizes[:-1], sizes[1:])]
 
-class Neural_Network:
-    
-    # nodes is a list of the number of nodes in each layer
-    # weights and biases are matrices consisting of weight and bias values for the neural network initialised initially to random values from N(0,1)--> standard normal distribution
-    def __init__(self,nodes):
-        self.nodes=nodes
-        self.layers=len(nodes)
-        self.weights=[]
-        self.biases=[]
-        for i in range (1,self.layers):
-            self.weights.append(np.random.randn(nodes[i],nodes[i-1]))# array of shape y,x
-            self.biases.append(np.random.randn(nodes[i],1))# array of shape y,1
-    
-    #function for the formation of initial mini batches
-    def SGD(self,training_data,epochs,mini_batch_size,lr):
-        n=len(training_data)
-        for i in range(epochs):
-            mini_batches=[]
-            random.shuffle(training_data)
-            for k in range(0,n,mini_batch_size):
-                mini_batches.append(training_data[k:k+mini_batch_size])
-            for mini_batch in mini_batches:
-                self.update_parameters(mini_batch,lr)
-        print("training done")
-            
-    def update_parameters(self,mini_batch,learning_rate):
-        db=[] #db and dw aren't the actual cost derivatives, theyre just the changes that need to be added
-        dw=[] #each time 
-        m=len(mini_batch)
-        for w,b in zip(self.weights,self.biases):
-            db.append(np.zeros(b.shape))
-            dw.append(np.zeros(w.shape))
-        for x,y in mini_batch:
-            delta_db,delta_dw=self.backprop(x,y)
-            db=[db+ddb for db,ddb in zip(db,delta_db)]
-            dw=[dw+ddw for dw,ddw in zip(dw,delta_dw)]
-        self.weights = [w-(learning_rate/m)*nw
-                        for w, nw in zip(self.weights, dw)]
-        self.biases = [b-(learning_rate/m)*nb
-                       for b, nb in zip(self.biases, db)]
-
-    #to calculate delc/delw and delc/delb (gradients of the cost function for a given x) using backpropogation formulae
-    def backprop(self,x,y):
-        db=[] #here db and dw and the actual cost derivatives which will be calculated 
-        dw=[] 
-        for w,b in zip(self.weights,self.biases):
-            db.append(np.zeros(b.shape))
-            dw.append(np.zeros(w.shape))
-        activation=x
-        activations=[x]
-        zs=[]
-        for w,b in zip(self.weights,self.biases):
-            z=np.dot(w,x)+b
-            zs.append(z)
-            activation=sigma(z)
-            activations.append(activation)
-        error=self.cost_derivative(y,activations[-1])*sigma_prime(zs[-1])
-        db[-1]=error 
-        dw[-1]=error@(activations[-2].T)
-        for i in range(2,self.layers):
-            error=((self.weights[-i+1].T)@error)*sigma_prime(zs[-i])
-            db[-i]=error 
-            dw[-i]=error@(activations[-i-1].T)
-        return (db,dw)
-
-    # function to return C'
-    def cost_derivative(self,y,a):
-        return a-y
-    
-    #to evaluate output based on our model for the network
     def feedforward(self, a):
-        for w, b in zip(self.weights, self.biases):
-            a = sigma(np.dot(w, a) + b)
+        """Return the output of the network if `a` is input."""
+        for b, w in zip(self.biases, self.weights):
+            a = sigmoid(np.dot(w, a) + b)
         return a
 
-            
+    def SGD(self, training_data, epochs, mini_batch_size, eta,
+            test_data=None):
+        """Train the neural network using mini-batch stochastic gradient descent."""
+        if test_data:
+            n_test = len(test_data)
+        n = len(training_data)
 
-        
+        for j in range(epochs):
+            random.shuffle(training_data)
+            mini_batches = [
+                training_data[k:k+mini_batch_size]
+                for k in range(0, n, mini_batch_size)
+            ]
+            for mini_batch in mini_batches:
+                self.update_mini_batch(mini_batch, eta)
+            if test_data:
+                print(f"Epoch {j + 1}: {self.evaluate(test_data)} / {n_test}")
+            else:
+                print(f"Epoch {j + 1} complete")
+
+    def update_mini_batch(self, mini_batch, eta):
+        """Update weights and biases using one mini batch."""
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        for x, y in mini_batch:
+            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
+            nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
+            nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+        self.weights = [w - (eta / len(mini_batch)) * nw
+                        for w, nw in zip(self.weights, nabla_w)]
+        self.biases = [b - (eta / len(mini_batch)) * nb
+                       for b, nb in zip(self.biases, nabla_b)]
+
+    def backprop(self, x, y):
+        """Return (nabla_b, nabla_w) representing the gradient of the cost."""
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+
+        # forward pass
+        activation = x
+        activations = [x]
+        zs = []
+        for b, w in zip(self.biases, self.weights):
+            z = np.dot(w, activation) + b
+            zs.append(z)
+            activation = sigmoid(z)
+            activations.append(activation)
+
+        # backward pass
+        delta = self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
+        nabla_b[-1] = delta
+        nabla_w[-1] = np.dot(delta, activations[-2].T)
+
+        for l in range(2, self.num_layers):
+            z = zs[-l]
+            sp = sigmoid_prime(z)
+            delta = np.dot(self.weights[-l + 1].T, delta) * sp
+            nabla_b[-l] = delta
+            nabla_w[-l] = np.dot(delta, activations[-l - 1].T)
+
+        return (nabla_b, nabla_w)
+
+    def evaluate(self, test_data):
+        """Evaluate the network on test data and return number correct."""
+        test_results = [(np.argmax(self.feedforward(x)), y)
+                        for (x, y) in test_data]
+        return sum(int(x == y) for (x, y) in test_results)
+
+    def cost_derivative(self, output_activations, y):
+        """Return the derivative of the cost function."""
+        return (output_activations - y)
+
+
+# Sigmoid activation functions
+def sigmoid(z):
+    """The sigmoid function."""
+    return 1.0 / (1.0 + np.exp(-z))
+
+
+def sigmoid_prime(z):
+    """Derivative of the sigmoid function."""
+    return sigmoid(z) * (1 - sigmoid(z))
