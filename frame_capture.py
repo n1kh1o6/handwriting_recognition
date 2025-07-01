@@ -7,11 +7,11 @@ def frame_capture(url):
     #using ip webcam,this is used to get access to the stream
     cap = cv.VideoCapture(url, cv.CAP_FFMPEG)
 
+    print("press c to capture the frame or press q to quit")
+
     if cap.isOpened():
         print("connected to stream")
         while True:
-        
-            print("press c to capture the frame or press q to quit")
 
             #return is a boolean which returns True if the frame was read and false otherwise while frame is the actual frame that was captured
             ret, frame = cap.read()
@@ -20,7 +20,6 @@ def frame_capture(url):
 
             cv.imshow("Phone Camera Feed", frame)
             key = cv.waitKey(1)
-            print("waiting for key to be pressed ")
 
             #will capture frame when 'c' key is pressed and then preprocess that image
             if key == ord("c"):  

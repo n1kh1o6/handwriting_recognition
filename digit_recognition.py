@@ -2,7 +2,6 @@ import frame_capture
 import neural_network
 import data_processing
 import numpy as np
-import mnist_loader
 
 ip=input("enter your webcam ip: ")
 url=f"http://{ip}:8080/video"
